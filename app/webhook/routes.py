@@ -24,10 +24,10 @@ def receiver():
     Handles: push, pull_request (opened, closed/merged)
     """
     try:
-        print("Received event:", request)
         # Get event type from header
         event_type = request.headers.get("X-GitHub-Event", "")
         payload = request.get_json() or {}
+        print("Received event:", payload)
         
         # Skip ping events (GitHub webhook test)
         if event_type == "ping":
