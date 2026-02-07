@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -8,8 +8,8 @@
       rel="stylesheet"
       href="{{ url_for('static', filename='style.css') }}"
     />
-  <base target="_blank">
-</head>
+    <base target="_blank" />
+  </head>
   <body>
     <div class="container">
       <header>
@@ -43,7 +43,7 @@
     <script>
       // Configuration
       const POLL_INTERVAL = 15000; // 15 seconds
-      const API_ENDPOINT = "/api/events";
+      const API_ENDPOINT = "/api/v1/events";
       const MAX_RETRY = 5;
       const MAX_EVENTS = 50;
 
@@ -136,7 +136,7 @@
             } else {
               // Normal polling: only add new events
               const newEvents = data.events.filter(
-                (e) => !displayedEventIds.has(e.id)
+                (e) => !displayedEventIds.has(e.id),
               );
               if (newEvents.length > 0) {
                 renderEvents(newEvents, true); // Prepend new events
@@ -167,7 +167,7 @@
         if (retryCount < MAX_RETRY) {
           const delay = Math.min(1000 * Math.pow(2, retryCount), 30000);
           console.log(
-            `Retrying in ${delay}ms (attempt ${retryCount + 1}/${MAX_RETRY})`
+            `Retrying in ${delay}ms (attempt ${retryCount + 1}/${MAX_RETRY})`,
           );
 
           setTimeout(() => {
@@ -178,7 +178,7 @@
           updateStatus(
             "error",
             displayedEventIds.size,
-            "Max retries reached. Please refresh the page."
+            "Max retries reached. Please refresh the page.",
           );
         }
       }
@@ -264,7 +264,8 @@
             statusText.textContent = message || "Updating...";
             break;
           case "error":
-            statusText.textContent = message || "Connection error • Retrying...";
+            statusText.textContent =
+              message || "Connection error • Retrying...";
             lastUpdated.textContent = `Failed: ${now}`;
             break;
           default:
@@ -290,7 +291,10 @@
       // Cleanup on page unload
       window.addEventListener("beforeunload", () => {
         stopPolling();
-        document.removeEventListener("visibilitychange", handleVisibilityChange);
+        document.removeEventListener(
+          "visibilitychange",
+          handleVisibilityChange,
+        );
       });
     </script>
   </body>

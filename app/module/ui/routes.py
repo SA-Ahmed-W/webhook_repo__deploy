@@ -13,7 +13,7 @@ def dashboard():
 
 
 
-@ui.route("/api/events")
+@ui.route("/events")
 def get_events():
     try:
         if mongo.db is None:
