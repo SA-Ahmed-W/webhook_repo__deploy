@@ -9,7 +9,6 @@
       href="{{ url_for('static', filename='style.css') }}"
     />
     <base target="_blank" />
-    <base target="_blank" />
   </head>
   <body>
     <div class="container">
@@ -56,6 +55,7 @@
       </main>
 
       <footer>
+        <!-- <p>TechStaX Assignment | Auto-refresh every 15 seconds</p> -->
         <p>Auto-refresh every 15 seconds</p>
       </footer>
     </div>
@@ -109,12 +109,12 @@
             if (timezone) {
               currentTimezone = timezone.toUpperCase();
               console.log("Timezone changed to:", currentTimezone);
-              fetchEvents(true);
+              fetchEvents(true); // Full refresh on timezone change
             }
             if (range) {
               currentWindow = range === "15s" ? "15s" : "24h";
               console.log("Range changed to:", currentWindow);
-              fetchEvents(true);
+              fetchEvents(true); // Full refresh on window change
             }
           });
         });
@@ -126,12 +126,14 @@
           stopPolling();
         } else {
           console.log("Tab visible, resuming with full sync");
+          // Do full sync when tab becomes visible again
           fetchEvents(true);
           startPolling();
         }
       }
 
       function startPolling() {
+        // Clear existing timer before starting new one
         stopPolling();
         pollTimer = setInterval(() => fetchEvents(false), POLL_INTERVAL);
       }
@@ -143,7 +145,6 @@
         }
       }
 
-      // Sliding window logic for 15s vs 24h
       async function fetchEvents(fullSync = false) {
         try {
           updateStatus(fullSync ? "syncing" : "loading");
@@ -153,9 +154,8 @@
           params.append("timezone", currentTimezone);
           params.append("window", currentWindow);
 
-          // For 24h window: use last_seen for incremental updates (deduplication)
-          // For 15s window: never use last_seen - always get fresh sliding window
-          if (currentWindow === "24h" && !fullSync && lastSeenTimestamp) {
+          // Only use last_seen for polling, not for full sync
+          if (!fullSync && lastSeenTimestamp) {
             params.append("last_seen", lastSeenTimestamp);
           }
 
@@ -168,48 +168,39 @@
           }
 
           const data = await response.json();
+
+          // Reset retry count on success
           retryCount = 0;
 
-          // SLIDING WINDOW LOGIC
-          if (currentWindow === "15s") {
-            eventsList.innerHTML = "";
-            displayedEventIds.clear();
+          if (data.events && data.events.length > 0) {
+            // Update last seen timestamp to the most recent event
+            const newestEvent = data.events[0];
+            lastSeenTimestamp = newestEvent.timestamp;
 
-            if (data.events && data.events.length > 0) {
-              lastSeenTimestamp = data.events[0].timestamp;
+            if (fullSync) {
+              // Full sync: clear and rebuild everything
+              eventsList.innerHTML = "";
+              displayedEventIds.clear();
               renderEvents(data.events, false); // Append in order
               isFirstLoad = false;
             } else {
-              emptyState.style.display = "block";
-              eventsList.style.display = "none";
-            }
-          } else {
-            // 24h window: incremental polling with deduplication
-            if (data.events && data.events.length > 0) {
-              const newestEvent = data.events[0];
-              lastSeenTimestamp = newestEvent.timestamp;
-
-              if (fullSync) {
-                eventsList.innerHTML = "";
-                displayedEventIds.clear();
-                renderEvents(data.events, false);
-                isFirstLoad = false;
-              } else {
-                const newEvents = data.events.filter(
-                  (e) => !displayedEventIds.has(e.id),
-                );
-                if (newEvents.length > 0) {
-                  renderEvents(newEvents, true);
-                }
+              // Normal polling: only add new events
+              const newEvents = data.events.filter(
+                (e) => !displayedEventIds.has(e.id),
+              );
+              if (newEvents.length > 0) {
+                renderEvents(newEvents, true); // Prepend new events
               }
-            } else if (fullSync) {
-              eventsList.innerHTML = "";
-              displayedEventIds.clear();
-              emptyState.style.display = "block";
-              eventsList.style.display = "none";
             }
+          } else if (fullSync) {
+            // No events on full sync - show empty state
+            eventsList.innerHTML = "";
+            displayedEventIds.clear();
+            emptyState.style.display = "block";
+            eventsList.style.display = "none";
           }
 
+          // Update status with actual displayed count
           updateStatus("connected", displayedEventIds.size);
         } catch (error) {
           console.error("Fetch error:", error);
@@ -222,6 +213,7 @@
           error.message || "Failed to connect to server. Retrying...";
         updateStatus("error", displayedEventIds.size, errorMessage);
 
+        // Exponential backoff for retries
         if (retryCount < MAX_RETRY) {
           const delay = Math.min(1000 * Math.pow(2, retryCount), 30000);
           console.log(
@@ -242,12 +234,14 @@
       }
 
       function renderEvents(events, prepend = false) {
+        // Hide empty state if we have events
         if (events.length > 0) {
           emptyState.style.display = "none";
           eventsList.style.display = "block";
         }
 
         events.forEach((event) => {
+          // Skip if already displayed
           if (displayedEventIds.has(event.id)) {
             console.log("Skipping duplicate event:", event.id);
             return;
@@ -278,9 +272,11 @@
             eventsList.appendChild(li);
           }
 
+          // Animation for new items
           li.style.animation = "slideIn 0.3s ease-out";
         });
 
+        // Limit displayed events to prevent DOM bloat
         while (eventsList.children.length > MAX_EVENTS) {
           const removed = eventsList.lastChild;
           if (removed && removed.dataset.id) {
@@ -342,6 +338,7 @@
         return div.innerHTML;
       }
 
+      // Cleanup on page unload
       window.addEventListener("beforeunload", () => {
         stopPolling();
         document.removeEventListener(
